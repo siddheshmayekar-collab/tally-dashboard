@@ -1,0 +1,3 @@
+﻿entry_code,DATE,Mode,VOUCHERTYPENAME,Narration,DebitLedger,AmountDebitLedger,CreditLedger,AmountCreditLedger
+1,20260511,Journal,S-JV,Being Brand Settlement for payment mode COD for period 11-05-2026,Seller_Sale_COD_B_27,-34627,12170_Atha Fashion_V,34627
+1,20260511,Journal,S-JV,Being Brand Settlement for payment mode COD for period 11-05-2026,Seller_Sale_COD_B_27,-178984.45,2411_Cantabil Retail India Limited_V,178984.45

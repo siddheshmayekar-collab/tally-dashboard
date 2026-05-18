@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tally XML Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    .type-card { transition: all 0.15s ease; cursor: pointer; }
+    .type-card:hover { transform: translateY(-2px); }
+    .type-card.selected { outline: 3px solid; outline-offset: 2px; }
+    .drop-zone { transition: all 0.2s ease; }
+    .drop-zone.drag-over { background: #eff6ff; border-color: #3b82f6 !important; }
+    .stat-card { animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .spinner { border-top-color: transparent; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    ::-webkit-scrollbar { height: 6px; width: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen">
+
+<!-- ========== HEADER ========== -->
+<header class="bg-gradient-to-r from-slate-800 to-slate-700 text-white shadow-lg">
+  <div class="max-w-5xl mx-auto px-6 py-5 flex items-center gap-4">
+    <div class="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center shrink-0">
+      <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414A1 1 0 0119 9.414V19a2 2 0 01-2 2z"/>
+      </svg>
+    </div>
+    <div>
+      <h1 class="text-xl font-bold tracking-tight">Tally XML Generator</h1>
+      <p class="text-slate-400 text-sm">Upload a CSV → validate → download Tally-ready XML</p>
+    </div>
+  </div>
+</header>
+
+<!-- ========== MAIN ========== -->
+<main class="max-w-5xl mx-auto px-6 py-8 space-y-6">
+
+  <!-- Step 1: Type selector -->
+  <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+    <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-4">Step 1 — Document type</h2>
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3" id="typeGrid">
+
+      <div class="type-card border-2 border-purple-200 rounded-xl p-4 text-center selected outline-purple-500"
+           data-type="cn" onclick="selectType(this)">
+        <div class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center mx-auto mb-2">
+          <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/>
+          </svg>
+        </div>
+        <div class="font-semibold text-slate-800 text-sm">Credit Note</div>
+        <div class="text-xs text-slate-500 mt-0.5">cn.csv</div>
+      </div>
+
+      <div class="type-card border-2 border-blue-200 rounded-xl p-4 text-center"
+           data-type="jv" onclick="selectType(this)">
+        <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-2">
+          <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+          </svg>
+        </div>
+        <div class="font-semibold text-slate-800 text-sm">Journal Voucher</div>
+        <div class="text-xs text-slate-500 mt-0.5">jv.csv</div>
+      </div>
+
+      <div class="type-card border-2 border-emerald-200 rounded-xl p-4 text-center"
+           data-type="sale" onclick="selectType(this)">
+        <div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center mx-auto mb-2">
+          <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+          </svg>
+        </div>
+        <div class="font-semibold text-slate-800 text-sm">Sale (INR)</div>
+        <div class="text-xs text-slate-500 mt-0.5">sale.csv</div>
+      </div>
+
+      <div class="type-card border-2 border-orange-200 rounded-xl p-4 text-center"
+           data-type="sale_usd" onclick="selectType(this)">
+        <div class="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center mx-auto mb-2">
+          <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/>
+          </svg>
+        </div>
+        <div class="font-semibold text-slate-800 text-sm">Sale (USD/FX)</div>
+        <div class="text-xs text-slate-500 mt-0.5">sale_USD.csv</div>
+      </div>
+
+      <div class="type-card border-2 border-teal-200 rounded-xl p-4 text-center"
+           data-type="nexus" onclick="selectType(this)">
+        <div class="w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center mx-auto mb-2">
+          <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+          </svg>
+        </div>
+        <div class="font-semibold text-slate-800 text-sm">Nexus Billing</div>
+        <div class="text-xs text-teal-600 font-medium mt-0.5">Sale + JV XMLs</div>
+      </div>
+
+      <div class="type-card border-2 border-sky-200 rounded-xl p-4 text-center"
+           data-type="receipt" onclick="selectType(this)">
+        <div class="w-10 h-10 bg-sky-100 rounded-xl flex items-center justify-center mx-auto mb-2">
+          <svg class="w-5 h-5 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+          </svg>
+        </div>
+        <div class="font-semibold text-slate-800 text-sm">Receipt</div>
+        <div class="text-xs text-sky-600 font-medium mt-0.5">BQ + Bill Alloc</div>
+      </div>
+
+    </div>
+
+    <!-- Receipt: Trade Receivables source panel -->
+    <div id="receiptPanel" class="hidden mt-5 pt-5 border-t border-slate-100">
+      <p class="text-sm font-semibold text-slate-600 mb-3">Trade Receivables source</p>
+      <div class="flex flex-wrap gap-4 mb-4">
+        <label class="flex items-center gap-2 cursor-pointer select-none">
+          <input type="radio" id="trModeBQ" name="trMode" value="bq" checked
+                 class="accent-sky-600" onchange="toggleTrMode()">
+          <span class="text-sm font-medium text-slate-700">Fetch from BigQuery</span>
+          <span id="bqBadge"
+                class="bg-emerald-100 text-emerald-700 text-xs px-2 py-0.5 rounded-full font-semibold">Checking…</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer select-none">
+          <input type="radio" id="trModeCSV" name="trMode" value="csv"
+                 class="accent-sky-600" onchange="toggleTrMode()">
+          <span class="text-sm font-medium text-slate-700">Upload Trade Receivables CSV</span>
+        </label>
+      </div>
+
+      <!-- BQ info -->
+      <div id="trBqArea" class="bg-sky-50 border border-sky-200 rounded-xl p-4 text-sm text-sky-900 space-y-1">
+        <p class="font-semibold text-sky-800">Will run on submit:</p>
+        <p class="font-mono text-xs bg-white border border-sky-100 rounded px-2 py-1 text-slate-700 overflow-x-auto">
+          SELECT Vch_No, Debit FROM `fynd-db.Tally_23_24.voucher_transaction`<br>
+          WHERE primary_group = "Trade Receivables"<br>
+          AND Vch_No IN (&lt;invoices from your CSV&gt;)
+        </p>
+        <p id="bqStatusMsg" class="text-xs text-slate-500 pt-1">Checking credentials…</p>
+      </div>
+
+      <!-- CSV upload for TR -->
+      <div id="trCsvArea" class="hidden">
+        <div class="border-2 border-dashed border-slate-300 rounded-xl p-5 text-center cursor-pointer hover:border-sky-400 hover:bg-slate-50"
+             onclick="document.getElementById('trFileInput').click()"
+             ondragover="event.preventDefault()" ondrop="handleTrDrop(event)">
+          <input type="file" id="trFileInput" accept=".csv" class="hidden"
+                 onchange="handleTrFile(event)"/>
+          <div id="trDropIcon">
+            <svg class="w-8 h-8 text-slate-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+            </svg>
+            <p class="text-slate-600 text-sm font-medium">Drop Trade Receivables CSV</p>
+            <p class="text-slate-400 text-xs mt-1">or click to browse</p>
+          </div>
+          <div id="trFileInfo" class="hidden">
+            <svg class="w-8 h-8 text-sky-500 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414A1 1 0 0119 9.414V19a2 2 0 01-2 2z"/>
+            </svg>
+            <p id="trFileName" class="text-slate-800 font-semibold text-sm"></p>
+            <p id="trFileSize" class="text-slate-500 text-xs mt-0.5"></p>
+            <button onclick="clearTrFile(event)" class="mt-2 text-xs text-red-500 hover:text-red-700 underline">Remove</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 2: Upload -->
+  <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+    <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-4">Step 2 — Upload CSV</h2>
+
+    <div id="dropZone"
+         class="drop-zone border-2 border-dashed border-slate-300 rounded-xl p-10 text-center cursor-pointer hover:border-indigo-400 hover:bg-slate-50"
+         onclick="document.getElementById('fileInput').click()"
+         ondragover="handleDragOver(event)"
+         ondragleave="handleDragLeave(event)"
+         ondrop="handleDrop(event)">
+      <input type="file" id="fileInput" accept=".csv" class="hidden" onchange="handleFile(event)"/>
+      <div id="dropIcon">
+        <svg class="w-12 h-12 text-slate-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+        </svg>
+        <p class="text-slate-600 font-medium">Drop your CSV file here</p>
+        <p class="text-slate-400 text-sm mt-1">or click to browse</p>
+      </div>
+      <div id="fileInfo" class="hidden">
+        <svg class="w-10 h-10 text-indigo-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414A1 1 0 0119 9.414V19a2 2 0 01-2 2z"/>
+        </svg>
+        <p id="fileName" class="text-slate-800 font-semibold text-sm"></p>
+        <p id="fileSize" class="text-slate-500 text-xs mt-1"></p>
+        <button onclick="clearFile(event)"
+                class="mt-3 text-xs text-red-500 hover:text-red-700 underline">Remove</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Generate button -->
+  <div class="flex justify-center">
+    <button id="generateBtn" onclick="generate()"
+            class="px-8 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold rounded-xl shadow-md transition-all text-sm flex items-center gap-2"
+            disabled>
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M13 10V3L4 14h7v7l9-11h-7z"/>
+      </svg>
+      Generate XML
+    </button>
+  </div>
+
+  <!-- Loading -->
+  <div id="loading" class="hidden text-center py-4">
+    <div class="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full spinner mx-auto mb-2"></div>
+    <p class="text-slate-500 text-sm">Processing CSV…</p>
+  </div>
+
+  <!-- Error banner -->
+  <div id="errorBanner" class="hidden bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm whitespace-pre-wrap"></div>
+
+  <!-- ========== RESULTS ========== -->
+  <section id="results" class="hidden space-y-5">
+
+    <!-- Summary header -->
+    <div class="flex items-center gap-3">
+      <div id="statusIcon" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0"></div>
+      <div>
+        <h2 id="statusTitle" class="font-semibold text-slate-800"></h2>
+        <p id="statusSub" class="text-slate-500 text-sm"></p>
+      </div>
+    </div>
+
+    <!-- Stat cards row -->
+    <div id="statCards" class="flex flex-wrap gap-4"></div>
+
+    <!-- JV Balance -->
+    <div id="balancePanel" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+      <h3 class="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-4">Debit / Credit Balance</h3>
+      <div class="flex flex-wrap gap-4">
+        <div class="flex-1 min-w-36 bg-blue-50 rounded-xl p-4">
+          <div class="text-xs text-blue-600 font-semibold mb-1">Total Debit</div>
+          <div id="balDebit" class="text-2xl font-bold text-blue-800"></div>
+        </div>
+        <div class="flex-1 min-w-36 bg-emerald-50 rounded-xl p-4">
+          <div class="text-xs text-emerald-600 font-semibold mb-1">Total Credit</div>
+          <div id="balCredit" class="text-2xl font-bold text-emerald-800"></div>
+        </div>
+        <div id="balStatus" class="flex-1 min-w-36 rounded-xl p-4 flex flex-col items-center justify-center"></div>
+      </div>
+    </div>
+
+    <!-- Invoice warnings (Receipt type) -->
+    <div id="invoiceWarnings" class="hidden bg-white rounded-2xl shadow-sm border border-rose-200 p-5">
+      <div class="flex items-center gap-2 mb-4">
+        <div class="w-6 h-6 bg-rose-100 rounded-full flex items-center justify-center shrink-0">
+          <svg class="w-4 h-4 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        </div>
+        <h3 class="text-sm font-semibold text-rose-800">Invoices not found in Trade Receivables</h3>
+        <span id="invoiceWarnCount" class="ml-auto bg-rose-100 text-rose-700 text-xs font-bold px-2.5 py-0.5 rounded-full"></span>
+      </div>
+      <p class="text-xs text-rose-600 mb-3">These invoices had no matching Vch_No in Trade Receivables — their bill allocation amount was set to 0. Verify the invoice numbers are correct.</p>
+      <div class="overflow-x-auto max-h-64 overflow-y-auto">
+        <table class="w-full text-sm">
+          <thead class="sticky top-0 bg-white">
+            <tr class="text-xs text-slate-500 uppercase">
+              <th class="text-left pb-2 pr-4 font-semibold">Row (CSV)</th>
+              <th class="text-left pb-2 font-semibold">Invoice No.</th>
+            </tr>
+          </thead>
+          <tbody id="invoiceWarnTable" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Missing fields -->
+    <div id="missingPanel" class="hidden bg-white rounded-2xl shadow-sm border border-amber-200 p-5">
+      <div class="flex items-center gap-2 mb-4">
+        <div class="w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center">
+          <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5C3.312 18.333 4.272 20 5.812 20z"/>
+          </svg>
+        </div>
+        <h3 class="text-sm font-semibold text-amber-800">Missing / Empty Required Fields</h3>
+        <span id="missingCount" class="ml-auto bg-amber-100 text-amber-700 text-xs font-bold px-2.5 py-0.5 rounded-full"></span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-xs text-slate-500 uppercase">
+              <th class="text-left pb-2 pr-4 font-semibold">Row (CSV)</th>
+              <th class="text-left pb-2 pr-4 font-semibold">Column</th>
+              <th class="text-left pb-2 font-semibold">Issue</th>
+            </tr>
+          </thead>
+          <tbody id="missingTable" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Amount sums -->
+    <div id="sumsPanel" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+      <h3 class="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-4">Column Totals</h3>
+      <div id="sumsGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3"></div>
+    </div>
+
+    <!-- Download (single) -->
+    <div id="downloadSingle" class="flex justify-center pt-2">
+      <a id="downloadBtn" href="#"
+         class="px-8 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl shadow-md transition-all text-sm flex items-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+        </svg>
+        Download XML
+      </a>
+    </div>
+
+    <!-- Download (Nexus dual) -->
+    <div id="downloadNexus" class="hidden flex-col sm:flex-row gap-3 justify-center items-center pt-2">
+      <div class="text-xs text-slate-500 font-semibold uppercase tracking-wider w-full text-center sm:hidden mb-1">Download both files</div>
+      <a id="downloadSaleBtn" href="#"
+         class="px-7 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl shadow-md transition-all text-sm flex items-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+        </svg>
+        Download Sale XML (VAR-INV)
+      </a>
+      <a id="downloadJvBtn" href="#"
+         class="px-7 py-3.5 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl shadow-md transition-all text-sm flex items-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+        </svg>
+        Download JV XML (S-JV)
+      </a>
+    </div>
+
+  </section>
+</main>
+
+<footer class="text-center text-xs text-slate-400 py-6">Tally XML Generator &mdash; local dashboard</footer>
+
+<script>
+  // -------- state --------
+  let selectedType = 'cn';
+  let selectedFile = null;
+  let selectedTrFile = null;  // Trade Receivables CSV (receipt mode only)
+  let bqAvailable = false;
+
+  // -------- BQ status check on load --------
+  (async () => {
+    try {
+      const r = await fetch('/bq-status');
+      const d = await r.json();
+      bqAvailable = d.available;
+      const badge = document.getElementById('bqBadge');
+      const msg   = document.getElementById('bqStatusMsg');
+      if (d.available) {
+        badge.textContent = '✓ Connected';
+        badge.className = 'bg-emerald-100 text-emerald-700 text-xs px-2 py-0.5 rounded-full font-semibold';
+        msg.textContent = `Project: ${d.project} — credentials active`;
+        msg.className = 'text-xs text-emerald-700 pt-1 font-medium';
+      } else {
+        badge.textContent = '✗ Not available';
+        badge.className = 'bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded-full font-semibold';
+        msg.textContent = `${d.reason || 'Run: gcloud auth application-default login'}`;
+        msg.className = 'text-xs text-red-600 pt-1';
+        // Auto-switch to CSV mode if BQ not available
+        document.getElementById('trModeCSV').checked = true;
+        toggleTrMode();
+      }
+    } catch(_) {}
+  })();
+
+  // -------- type selection --------
+  function selectType(card) {
+    document.querySelectorAll('.type-card').forEach(c => {
+      c.classList.remove('selected',
+        'outline-purple-500','outline-blue-500','outline-emerald-500',
+        'outline-orange-500','outline-teal-500','outline-sky-500');
+    });
+    const colorMap = {
+      cn:'outline-purple-500', jv:'outline-blue-500',
+      sale:'outline-emerald-500', sale_usd:'outline-orange-500',
+      nexus:'outline-teal-500', receipt:'outline-sky-500'
+    };
+    card.classList.add('selected', colorMap[card.dataset.type] || 'outline-indigo-500');
+    selectedType = card.dataset.type;
+    // Show/hide receipt panel
+    document.getElementById('receiptPanel').classList.toggle('hidden', selectedType !== 'receipt');
+    updateBtn();
+    hideResults();
+  }
+
+  // -------- TR mode toggle --------
+  function toggleTrMode() {
+    const mode = document.querySelector('input[name="trMode"]:checked').value;
+    document.getElementById('trBqArea').classList.toggle('hidden', mode !== 'bq');
+    document.getElementById('trCsvArea').classList.toggle('hidden', mode !== 'csv');
+    updateBtn();
+  }
+
+  function getTrMode() {
+    const el = document.querySelector('input[name="trMode"]:checked');
+    return el ? el.value : 'bq';
+  }
+
+  // -------- main file handling --------
+  function handleFile(e)      { setFile(e.target.files[0]); }
+  function handleDragOver(e)  { e.preventDefault(); document.getElementById('dropZone').classList.add('drag-over'); }
+  function handleDragLeave()  { document.getElementById('dropZone').classList.remove('drag-over'); }
+  function handleDrop(e) {
+    e.preventDefault();
+    document.getElementById('dropZone').classList.remove('drag-over');
+    if (e.dataTransfer.files.length) setFile(e.dataTransfer.files[0]);
+  }
+  function setFile(file) {
+    if (!file) return;
+    selectedFile = file;
+    document.getElementById('dropIcon').classList.add('hidden');
+    document.getElementById('fileInfo').classList.remove('hidden');
+    document.getElementById('fileName').textContent = file.name;
+    document.getElementById('fileSize').textContent = formatBytes(file.size);
+    updateBtn(); hideResults();
+  }
+  function clearFile(e) {
+    e.stopPropagation();
+    selectedFile = null;
+    document.getElementById('fileInput').value = '';
+    document.getElementById('dropIcon').classList.remove('hidden');
+    document.getElementById('fileInfo').classList.add('hidden');
+    updateBtn(); hideResults();
+  }
+
+  // -------- TR file handling --------
+  function handleTrFile(e)  { setTrFile(e.target.files[0]); }
+  function handleTrDrop(e)  {
+    e.preventDefault();
+    if (e.dataTransfer.files.length) setTrFile(e.dataTransfer.files[0]);
+  }
+  function setTrFile(file) {
+    if (!file) return;
+    selectedTrFile = file;
+    document.getElementById('trDropIcon').classList.add('hidden');
+    document.getElementById('trFileInfo').classList.remove('hidden');
+    document.getElementById('trFileName').textContent = file.name;
+    document.getElementById('trFileSize').textContent = formatBytes(file.size);
+    updateBtn();
+  }
+  function clearTrFile(e) {
+    e.stopPropagation();
+    selectedTrFile = null;
+    document.getElementById('trFileInput').value = '';
+    document.getElementById('trDropIcon').classList.remove('hidden');
+    document.getElementById('trFileInfo').classList.add('hidden');
+    updateBtn();
+  }
+
+  // -------- shared helpers --------
+  function formatBytes(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+    return (b/1048576).toFixed(2) + ' MB';
+  }
+
+  function updateBtn() {
+    let ready = !!(selectedType && selectedFile);
+    if (selectedType === 'receipt' && getTrMode() === 'csv' && !selectedTrFile) ready = false;
+    document.getElementById('generateBtn').disabled = !ready;
+  }
+
+  function hideResults() {
+    document.getElementById('results').classList.add('hidden');
+    document.getElementById('errorBanner').classList.add('hidden');
+  }
+
+  // -------- generate --------
+  async function generate() {
+    if (!selectedFile || !selectedType) return;
+
+    const isReceipt = selectedType === 'receipt';
+    const trMode    = getTrMode();
+
+    document.getElementById('loading').classList.remove('hidden');
+    document.getElementById('generateBtn').disabled = true;
+    document.getElementById('errorBanner').classList.add('hidden');
+    document.getElementById('results').classList.add('hidden');
+
+    // Update spinner message for BQ mode
+    const spinMsg = document.querySelector('#loading p');
+    spinMsg.textContent = (isReceipt && trMode === 'bq')
+      ? 'Querying BigQuery Trade Receivables…'
+      : 'Processing CSV…';
+
+    const fd = new FormData();
+    fd.append('file',     selectedFile);
+    fd.append('type',     selectedType);
+    fd.append('filename', selectedFile.name);
+
+    if (isReceipt) {
+      fd.append('bq_mode', trMode === 'bq' ? 'true' : 'false');
+      if (trMode === 'csv' && selectedTrFile) fd.append('tr_file', selectedTrFile);
+    }
+
+    try {
+      const res  = await fetch('/process', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        // If BQ credentials expired, auto-switch to CSV mode and prompt user
+        const isBqAuthErr = data.error && (
+          data.error.includes('invalid_grant') ||
+          data.error.includes('credentials') ||
+          data.error.includes('BigQuery error')
+        );
+        if (isBqAuthErr && isReceipt && trMode === 'bq') {
+          bqAvailable = false;
+          // Switch UI to CSV mode
+          document.getElementById('trBq').checked  = false;
+          document.getElementById('trCsv').checked = true;
+          toggleTrMode();
+          // Update BQ badge to unavailable
+          const badge = document.getElementById('bqBadge');
+          if (badge) {
+            badge.textContent = 'Credentials expired';
+            badge.className = badge.className.replace(/bg-\w+-\d+/g, 'bg-red-100').replace(/text-\w+-\d+/g, 'text-red-700');
+          }
+          showError('BigQuery credentials have expired. Please upload the Trade Receivables CSV instead, or run: gcloud auth application-default login');
+        } else {
+          showError(data.error + (data.detail ? '\n\n' + data.detail : ''));
+        }
+      } else {
+        showResults(data.validation);
+      }
+    } catch(err) {
+      showError('Network error: ' + err.message);
+    } finally {
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('generateBtn').disabled = false;
+      spinMsg.textContent = 'Processing CSV…';
+    }
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('errorBanner');
+    el.textContent = msg;
+    el.classList.remove('hidden');
+  }
+
+  // -------- render results --------
+  function showResults(v) {
+    const hasMissing  = v.missing && v.missing.length > 0;
+    const hasInvWarn  = v.receipt_warnings && v.receipt_warnings.length > 0;
+    const hasAnyIssue = hasMissing || hasInvWarn;
+
+    const icon  = document.getElementById('statusIcon');
+    const title = document.getElementById('statusTitle');
+    const sub   = document.getElementById('statusSub');
+
+    if (hasAnyIssue) {
+      icon.className = 'w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-amber-100';
+      icon.innerHTML = `<svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5C3.312 18.333 4.272 20 5.812 20z"/></svg>`;
+      const issues = (v.missing?.length || 0) + (v.receipt_warnings?.length || 0);
+      title.textContent = `XML generated — ${issues} issue(s) detected`;
+      title.className = 'font-semibold text-amber-800';
+      sub.textContent = `${v.total_rows} row(s) processed — review warnings before importing into Tally`;
+    } else {
+      icon.className = 'w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-emerald-100';
+      icon.innerHTML = `<svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>`;
+      title.textContent = 'XML generated successfully';
+      title.className = 'font-semibold text-emerald-800';
+      sub.textContent = `${v.total_rows} row(s) processed — all checks passed`;
+    }
+
+    // ---- stat cards ----
+    const statCards = document.getElementById('statCards');
+    statCards.innerHTML = '';
+    statCards.appendChild(makeStatCard('Total Rows', v.total_rows, 'bg-indigo-50', 'text-indigo-700', 'text-indigo-900'));
+    if (v.total_invoices != null) {
+      statCards.appendChild(makeStatCard('Total Invoices', v.total_invoices, 'bg-sky-50', 'text-sky-700', 'text-sky-900'));
+    }
+    if (v.bq_rows_fetched != null) {
+      statCards.appendChild(makeStatCard('BQ Rows Matched', v.bq_rows_fetched, 'bg-emerald-50', 'text-emerald-700', 'text-emerald-900'));
+    }
+
+    // ---- JV balance ----
+    if (v.balance) {
+      document.getElementById('balancePanel').classList.remove('hidden');
+      document.getElementById('balDebit').textContent  = fmt(v.balance.debit);
+      document.getElementById('balCredit').textContent = fmt(v.balance.credit);
+      const bs = document.getElementById('balStatus');
+      if (v.balance.ok) {
+        bs.className = 'flex-1 min-w-36 bg-emerald-50 rounded-xl p-4 flex flex-col items-center justify-center';
+        bs.innerHTML = `<svg class="w-8 h-8 text-emerald-500 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span class="text-sm font-semibold text-emerald-700">Balanced</span>`;
+      } else {
+        const diff = Math.abs(Math.abs(v.balance.debit) - Math.abs(v.balance.credit));
+        bs.className = 'flex-1 min-w-36 bg-red-50 rounded-xl p-4 flex flex-col items-center justify-center';
+        bs.innerHTML = `<svg class="w-8 h-8 text-red-500 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span class="text-sm font-semibold text-red-700">Off by ${fmt(diff)}</span>`;
+      }
+    } else {
+      document.getElementById('balancePanel').classList.add('hidden');
+    }
+
+    // ---- Invoice warnings (receipt) ----
+    const invWarnPanel = document.getElementById('invoiceWarnings');
+    if (hasInvWarn) {
+      invWarnPanel.classList.remove('hidden');
+      document.getElementById('invoiceWarnCount').textContent = v.receipt_warnings.length;
+      document.getElementById('invoiceWarnTable').innerHTML = v.receipt_warnings.map(w => `
+        <tr class="stat-card">
+          <td class="py-2 pr-4 font-mono text-xs text-slate-600 whitespace-nowrap">${w.row}</td>
+          <td class="py-2 font-mono text-xs text-rose-700">${w.invoice}</td>
+        </tr>`).join('');
+    } else {
+      invWarnPanel.classList.add('hidden');
+    }
+
+    // ---- Missing required fields ----
+    const missingPanel = document.getElementById('missingPanel');
+    if (hasMissing) {
+      missingPanel.classList.remove('hidden');
+      document.getElementById('missingCount').textContent = v.missing.length;
+      document.getElementById('missingTable').innerHTML = v.missing.map(m => `
+        <tr class="stat-card">
+          <td class="py-2 pr-4 font-mono text-xs text-slate-600">${m.row}</td>
+          <td class="py-2 pr-4 text-slate-700 font-medium">${m.field}</td>
+          <td class="py-2 text-amber-700">${m.issue}</td>
+        </tr>`).join('');
+    } else {
+      missingPanel.classList.add('hidden');
+    }
+
+    // ---- Amount sums ----
+    const sums    = v.amount_sums || {};
+    const sumKeys = Object.keys(sums);
+    const sumsPanel = document.getElementById('sumsPanel');
+    if (sumKeys.length) {
+      sumsPanel.classList.remove('hidden');
+      document.getElementById('sumsGrid').innerHTML = sumKeys.map(k => {
+        const val = sums[k];
+        const isNeg = val < 0;
+        return `<div class="stat-card ${isNeg?'bg-red-50':'bg-slate-50'} rounded-xl p-3">
+          <div class="text-xs ${isNeg?'text-red-500':'text-slate-500'} font-semibold mb-1 truncate" title="${k}">${k}</div>
+          <div class="text-base font-bold ${isNeg?'text-red-700':'text-slate-800'} truncate">${fmt(val)}</div>
+        </div>`;
+      }).join('');
+    } else {
+      sumsPanel.classList.add('hidden');
+    }
+
+    // ---- Download buttons ----
+    if (v.is_nexus) {
+      document.getElementById('downloadSingle').classList.add('hidden');
+      const nexusEl = document.getElementById('downloadNexus');
+      nexusEl.classList.remove('hidden');
+      nexusEl.classList.add('flex');
+      document.getElementById('downloadSaleBtn').href = '/download/' + v.token_sale;
+      document.getElementById('downloadJvBtn').href  = '/download/' + v.token_jv;
+    } else {
+      document.getElementById('downloadSingle').classList.remove('hidden');
+      document.getElementById('downloadNexus').classList.add('hidden');
+      document.getElementById('downloadNexus').classList.remove('flex');
+      document.getElementById('downloadBtn').href = '/download/' + v.token;
+    }
+
+    document.getElementById('results').classList.remove('hidden');
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function makeStatCard(label, value, bg, labelCol, valCol) {
+    const d = document.createElement('div');
+    d.className = `stat-card ${bg} rounded-xl p-5 min-w-36`;
+    d.innerHTML = `<div class="text-xs ${labelCol} font-semibold uppercase tracking-wider mb-1">${label}</div>
+                   <div class="text-3xl font-bold ${valCol}">${value}</div>`;
+    return d;
+  }
+
+  function fmt(n) {
+    return new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+  }
+</script>
+</body>
+</html>

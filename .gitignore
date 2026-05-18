@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
+
+# Large data files
+Trade Receivables.csv
+
+# Generated XML outputs
+*.xml
+
+# Archives
+*.zip
+
+# Jupyter runtime
+*.ipynb
