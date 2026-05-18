@@ -640,6 +640,21 @@ def _tally_date(raw) -> str:
         return pd.to_datetime(str(raw)).strftime('%Y%m%d')
 
 
+def _bq_client():
+    """Return a BigQuery client, using GOOGLE_CREDENTIALS env var if set (Railway/cloud)."""
+    from google.cloud import bigquery
+    creds_json = os.environ.get('GOOGLE_CREDENTIALS')
+    if creds_json:
+        import json
+        from google.oauth2 import service_account
+        info = json.loads(creds_json)
+        creds = service_account.Credentials.from_service_account_info(
+            info, scopes=['https://www.googleapis.com/auth/bigquery.readonly']
+        )
+        return bigquery.Client(project='fynd-db', credentials=creds)
+    return bigquery.Client(project='fynd-db')
+
+
 def fetch_bq_receivables(invoice_nos: list[str] | None = None) -> dict:
     """Fetch {Vch_No: Debit} from BigQuery Trade Receivables table.
 
@@ -647,7 +662,7 @@ def fetch_bq_receivables(invoice_nos: list[str] | None = None) -> dict:
     Falls back to pulling the full primary_group filter otherwise.
     """
     from google.cloud import bigquery   # lazy import — only needed for BQ mode
-    client = bigquery.Client(project='fynd-db')
+    client = _bq_client()
 
     if invoice_nos:
         placeholders = ', '.join(f'"{v}"' for v in invoice_nos)
@@ -837,11 +852,9 @@ def index():
 
 @app.route('/bq-status')
 def bq_status():
-    """Check whether BigQuery + ADC credentials are valid by running a cheap test query."""
+    """Check whether BigQuery credentials are valid by running a cheap test query."""
     try:
-        from google.cloud import bigquery as _bq
-        client = _bq.Client(project='fynd-db')
-        # Lightweight query that returns 0 rows — just validates auth
+        client = _bq_client()
         list(client.query('SELECT 1').result())
         return jsonify({'available': True, 'project': 'fynd-db'})
     except Exception as e:
@@ -962,5 +975,6 @@ def download(token):
 
 
 if __name__ == '__main__':
-    print('\n  Tally XML Dashboard running at: http://localhost:5050\n')
-    app.run(debug=True, port=5050)
+    port = int(os.environ.get('PORT', 5050))
+    print(f'\n  Tally XML Dashboard running at: http://localhost:{port}\n')
+    app.run(debug=False, host='0.0.0.0', port=port)
